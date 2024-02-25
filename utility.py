@@ -1,10 +1,14 @@
 import os
 
-def dec(hex: str) -> int: 
-    return int(hex, 16)
-def read_sector(file, sector_begin=0, n_sector=1, bps=512):
+def little_endian(data):
+    return data[::-1]
+def raw_to_dec(data):
+    data_reversed = little_endian(data)
+    hex_values = data_reversed.hex()
+    return int(hex_values, 16)
+def read_sector(path, sector_begin=0, n_sector=1, bps=512):
     sec = None
-    with open(file, mode='rb') as fp:
+    with open(path, mode='rb') as fp:
         fp.seek(bps*sector_begin)
         sec = fp.read(bps*n_sector)
     return sec
@@ -12,8 +16,8 @@ def read_bin_offset(buffer, offset, size):
     begin = buffer[offset:offset + size]
     return begin
 def read_dec_offset(buffer, offset, size):
-    begin = buffer[offset:offset + size]
-    return dec(begin[::-1].hex())
+    data = buffer[offset:offset + size]
+    return raw_to_dec(data)
 def read_hex_offset(buffer, offset, size):
     begin = buffer[offset:offset + size]
     return begin.hex()
@@ -46,3 +50,11 @@ def process_fat_lfnentries(subentries: list):
         if name.find('\x00') > 0:
             name = name[:name.find('\x00')]
         return name
+def print_xxd(data):
+    offset = 0
+    while offset < len(data):
+        chunk = data[offset:offset+16]
+        hex_chunk = ' '.join([f'{byte:02X}' for byte in chunk])
+        ascii_chunk = ''.join([chr(byte) if 32 <= byte <= 126 else '.' for byte in chunk])
+        print(f'{offset:08X}: {hex_chunk.ljust(48)}  {ascii_chunk}')
+        offset += 16
