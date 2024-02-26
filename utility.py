@@ -12,6 +12,11 @@ def read_sector(path, sector_begin=0, n_sector=1, bps=512):
         fp.seek(bps*sector_begin)
         sec = fp.read(bps*n_sector)
     return sec
+def read_list_sectors(path, sectors, bps = 512):
+    buffer = b''
+    for sector in sectors:
+        buffer += read_sector(path, sector)
+    return buffer
 def read_bin_offset(buffer, offset, size):
     begin = buffer[offset:offset + size]
     return begin
