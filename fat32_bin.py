@@ -117,24 +117,30 @@ class FAT32:
                     entry[0] = entries[i][0]
                     entry[1] = entries[i][1]
                     entry[3] = entries[i][3]
-                    self.print_directory(self.read_directory(entry))
+                    #self.print_directory(self.read_directory(entry))
+                    #print(ut.describe_attr(entry[1]))
                     break
                 else: 
                     entry[3] = -1
                 
         return entry 
-    def read_text_file(self, entry):
+    def read_text_file(self,path, entry):
         sectors = self.sectors_chain(entry[2])
+        
         # đọc sector và decode utf8
-        content_txt_file = ut.read_list_sectors(sectors)
-        print(content_txt_file.decode('utf-16le'))
+        content_txt_file = ut.read_list_sectors(path, sectors)
+        print(content_txt_file.decode('utf-8'))
     def read_path(self, path):
         entry = self.travel_to(path)
-        if entry[1] == 32:
+        #print(self.cluster_to_sectors(entry[2]))
+        print(entry[3])
+        if ut.describe_attr(entry[1]) == 'D':
             self.read_directory(entry)
             print("D")
-        elif entry[1] == 15 and entry[3] != -1:
-            self.read_text_file(entry)
+        elif ut.describe_attr(entry[1]) == "A" and entry[3] != -1:
+            path = r'\\.\E:'
+            self.read_text_file(path,entry)
+            
             print("A")
         else:
             print("ERROR")
@@ -167,12 +173,12 @@ drive = FAT32(path)
 #ut.print_xxd(bootsector)
 #print(drive.cluster_to_sectors(133))
 #drive.print_directory(entries)
-#entries = drive.travel_to("hoàng diễn/tuấn kiệt/test.txt")
-#drive.read_path('hoàng diễn/tuấn kiệt/lamsaodegiau.txt')
+#entries = drive.travel_to("Hoàng Diễn/con của Hoàng Diễn/phuonganhdao.txt")
+drive.read_path("Hoàng Diễn/con của Hoàng Diễn/phuonganhdao.txt")
+#drive.read_text_file(entry)
 #print(drive.cluster_to_sectors(drive.rdet_cluster_begin))
 # RDET = ut.read_sector(path, drive.data_sector_begin, 1)
 # RDET = RDET[32*4:]
 # entries = drive.read_rdet(RDET)
 # drive.print_RDET(entries)
-
 
