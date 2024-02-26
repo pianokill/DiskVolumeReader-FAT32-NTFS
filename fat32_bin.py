@@ -38,14 +38,15 @@ class FAT32:
         cluster_n = cluster_begin
         sectors_chain = []
         eof = [0x00000000, 0xFFFFFF0, 0xFFFFFFF, 0XFFFFFF7, 0xFFFFFF8, 0xFFFFFFF0]
-        while True:
-            cluster_data = fat_data[8 + cluster_n*4:8 + cluster_n*4 + 4]
-            cluster_data = ut.raw_to_dec(cluster_data)
-            sectors_chain += (self.cluster_to_sectors(cluster_n))
-            if cluster_data in eof:
-                break
-            else:
-                cluster_n = cluster_data
+        cluster_data = fat_data[8 + cluster_n*4:8 + cluster_n*4 + 4]
+        cluster_data = ut.raw_to_dec(cluster_data)
+        sectors_chain += (self.cluster_to_sectors(cluster_n))
+        if cluster_data not in eof:
+            for i in range(cluster_data - cluster_n - 1):
+                cluster_n += 1
+                cluster_data = fat_data[8 + cluster_n*4:8 + cluster_n*4 + 4]
+                cluster_data = ut.raw_to_dec(cluster_data)
+                sectors_chain += (self.cluster_to_sectors(cluster_n))
         return sectors_chain
     def read_data(self, cluster_begin):
         sectors = self.sectors_chain(cluster_begin)
@@ -70,8 +71,10 @@ class FAT32:
 
         #size
         size = ut.read_dec_offset(buffer,0x1C,4)
-        return name, attr, cluster_begin, size
-    def read_rdet(self, buffer):
+        return name, attr, cluster_begin, size  
+    def read_directory(self, entry):
+        sectors = self.sectors_chain(entry[2])
+        buffer = ut.read_list_sectors(self.path,sectors)
         entries = []
         sub_entries = []
         buffer_subentry = ()
@@ -83,11 +86,12 @@ class FAT32:
             if(entry[1] != 15):
        
                 buffer_subentry = ()
+                          
             # có entry phụ trong tập tin
                 if(len(entry) > 4):
                     # nối tên các entry phụ
                     entry = list(entry)  
-                    entry[0] =""
+                    entry[0] =""  
                     entry[0] += sub_name  
                     entry = tuple(entry) 
                     sub_name = '' 
@@ -100,7 +104,52 @@ class FAT32:
                 sub_entries.reverse()
                 sub_name += ut.process_fat_lfnentries(sub_entries)
         return entries
-    def print_RDET(self,buffer):
+    def travel_to(self, path):
+        directories = path.split('/')
+        entry = ['rdet', 'D', self.rdet_cluster_begin, 0]
+        
+        #Scan first directory in rdet
+        for k in range(0, len(directories)):
+            entries = self.read_directory(entry)
+            for i in range (0, len(entries)):
+                if directories[k] in entries[i][0]:
+                    entry[2] = entries[i][2]
+                    entry[0] = entries[i][0]
+                    entry[1] = entries[i][1]
+                    entry[3] = entries[i][3]
+                    self.print_directory(self.read_directory(entry))
+                    break
+                else: 
+                    entry[3] = -1
+                
+        return entry 
+    def read_text_file(self, entry):
+        sectors = self.sectors_chain(entry[2])
+        # đọc sector và decode utf8
+        content_txt_file = ut.read_list_sectors(sectors)
+        print(content_txt_file.decode('utf-16le'))
+    def read_path(self, path):
+        entry = self.travel_to(path)
+        if entry[1] == 32:
+            self.read_directory(entry)
+            print("D")
+        elif entry[1] == 15 and entry[3] != -1:
+            self.read_text_file(entry)
+            print("A")
+        else:
+            print("ERROR")
+        
+        
+            
+    
+    
+
+           
+
+        
+
+            
+    def print_directory(self,buffer):
         print("FILE - DIRECTORY INFORMATION")
         for i in range (0, len(buffer)):
             if(buffer[i][1] ==0):
@@ -110,18 +159,20 @@ class FAT32:
             print("Attribute: ", ut.describe_attr(buffer[i][1]))
             print("Cluster begin: ", buffer[i][2])
             print("Size: ", buffer[i][3])
-            
-path = r'\\.\F:'
+           
+path = r'\\.\E:'
 drive = FAT32(path)     
-drive.bootsector()
-#ut.print_xxd(bootsector)
 
-# RDET = ut.read_sector(path, drive.data_sector_begin, 4)
+#drive.bootsector()
+#ut.print_xxd(bootsector)
+#print(drive.cluster_to_sectors(133))
+#drive.print_directory(entries)
+#entries = drive.travel_to("hoàng diễn/tuấn kiệt/test.txt")
+#drive.read_path('hoàng diễn/tuấn kiệt/lamsaodegiau.txt')
+#print(drive.cluster_to_sectors(drive.rdet_cluster_begin))
+# RDET = ut.read_sector(path, drive.data_sector_begin, 1)
 # RDET = RDET[32*4:]
 # entries = drive.read_rdet(RDET)
 # drive.print_RDET(entries)
-
-sectors = drive.sectors_chain(101)
-print(sectors[-1])
 
 
