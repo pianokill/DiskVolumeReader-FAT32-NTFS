@@ -1,4 +1,5 @@
 import os
+import psutil
 
 def little_endian(data):
     return data[::-1]
@@ -63,3 +64,15 @@ def print_xxd(data):
         ascii_chunk = ''.join([chr(byte) if 32 <= byte <= 126 else '.' for byte in chunk])
         print(f'{offset:08X}: {hex_chunk.ljust(48)}  {ascii_chunk}')
         offset += 16
+def list_logical_disks():
+    logical_disks = []
+    partitions = psutil.disk_partitions(all=True)
+    
+    for partition in partitions:
+        disk = {
+            'mountpoint': partition.mountpoint,
+            'filesystem_type': partition.fstype
+        }
+        logical_disks.append(disk)
+    
+    return logical_disks
