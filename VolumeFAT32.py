@@ -120,6 +120,26 @@ class FAT32:
             if found == False:
                 return ['', 0x04, '', -1, '']
         return entry 
+    def read_file(self, entry,path):
+        apps = {
+        'pptx': 'PowerPoint',
+        'csv': 'Spreadsheet Software',
+        'json': 'Text Editor or JSON Viewer',
+        'pdf': 'PDF Reader',
+        'jpg': 'Image Viewer',
+        'mp3': 'Audio Player',
+        'mp4': 'Video Player',
+        'png': 'Photos'
+        # Thêm các định dạng file khác theo cần thiết
+        }
+        #text
+        if ut.describe_attr(entry[1]) == "A" and entry[3] != -1 :
+            self.print_text_file(self.path, entry)
+        #another file or empty file
+        else:
+            file_extension = path.split('.')[-1].lower()   
+            suggested_application = apps.get(file_extension, 'Unknown app')
+            print("We currently do not support the functionality of reading this file. If you want to view the contents inside, you can use the following application: "+suggested_application )
     def read_path(self, path):
         if path == 'rdet':
             entry = ['rdet', 0x10, self.rdet_cluster_begin, 1, '']
@@ -138,26 +158,12 @@ class FAT32:
             print("ATTRIBUTE: File")
         print("CLUSTER BEGIN: ", entry[2])
         print("SIZE: ", entry[3])
-        apps = {
-        'pptx': 'PowerPoint',
-        'csv': 'Spreadsheet Software',
-        'json': 'Text Editor or JSON Viewer',
-        'pdf': 'PDF Reader',
-        'jpg': 'Image Viewer',
-        'mp3': 'Audio Player',
-        'mp4': 'Video Player',
-        'png': 'Photos'
-        # Thêm các định dạng file khác theo cần thiết
-        }
+        #directory
         if ut.describe_attr(entry[1]) == 'D':
             self.print_directory(self.read_directory(entry))
-        elif ut.describe_attr(entry[1]) == "A" and entry[3] != -1 :
-            self.print_text_file(self.path, entry)
-        else:
-            file_extension = path.split('.')[-1].lower()
-           
-            suggested_application = apps.get(file_extension, 'Unknown app')
-            print("We currently do not support the functionality of reading this file. If you want to view the contents inside, you can use the following application: "+suggested_application )
+        #file 
+        else: 
+            self.read_file(self, entry,path)
     def draw_tree(self, path, indent = '', is_last=True):
         if path != 'rdet':
             entry_begin = self.travel_to(path)
