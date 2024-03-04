@@ -54,6 +54,7 @@ class NTFS:
         MFT_Record_Size = 2**abs(self.cluster_per_record)
         Sector_Size = self.sector_size
         record_offset = MFT_Begin_Sector
+        self.read_all_entry(record_offset, MFT_Record_Size, Sector_Size)
 
     def read_all_entry(self, record_offset, MFT_Record_Size, Sector_Size):
         for _ in range(2, self.mft_file.num_sector, 2):
@@ -66,10 +67,11 @@ class NTFS:
                     Sector_Size += self.sector_size
                     if(data[:4] == b"FILE"):
                         try:
-                            record = self.read_MFTRecord(raw_record)
+                            record = self.read_MFTRecord(data)
                         except Exception as e:
                             pass
                     print("NAME: ", record["File_Name"], record["MFT_ID"], record["Parent_ID"])
+                    record_offset += 1
                     break
                 else:
                     size += MFT_Record_Size
@@ -82,6 +84,7 @@ class NTFS:
                     except Exception as e:
                         pass
                     print("NAME: ", record["File_Name"], record["MFT_ID"], record["Parent_ID"])
+
             record_offset += 1
             Sector_Size = self.sector_size
 
@@ -191,7 +194,7 @@ class NTFS:
 
 path = r'\\.\F:'
 file = "drive_ntfs.bin"
-drive = NTFS(path)     
+drive = NTFS(file)     
 #drive.pbs_sector()
 
 
