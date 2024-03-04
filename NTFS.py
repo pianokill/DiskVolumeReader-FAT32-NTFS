@@ -38,14 +38,8 @@ class MFT_FILE:
         del self.data
 
 class NTFS:
-    root_directory = None
-    size = None
-    volumn_label = None
-    file_object = None
-
     def __init__ (self, path):
         self.file_object = path
-        
         pbs_sector = ut.read_sector(path, 0, 1)
         self.sector_size = ut.read_dec_offset(pbs_sector, 0x0B, 2)
         self.sc = ut.read_dec_offset(pbs_sector, 0x0D, 1)
@@ -53,16 +47,43 @@ class NTFS:
         self.volumn_size = ut.read_dec_offset(pbs_sector, 0x28, 8)
         self.mft_begin_cluster = ut.read_dec_offset(pbs_sector, 0x30, 8)
         self.mft_mir_cluster =  ut.read_dec_offset(pbs_sector, 0x38, 8)
-        self.cluster_per_file_record = int.from_bytes(pbs_sector[0x40:0x41],'little', signed = True)
-        self.mft_record_size = 2 ** abs(self.cluster_per_file_record)
-
         self.mft_file = MFT_FILE(ut.read_sector(self.file_object, self.mft_begin_cluster * self.sc, 2, self.sector_size))
+        self.cluster_per_record = int.from_bytes(pbs_sector[0x40:0x41], byteorder='little', signed=True)
 
-        data_sector = self.mft_begin_cluster * self.sc + 19 #19 20 22
-        data = ut.read_sector(self.file_object, data_sector, 1, self.sector_size)
-        data1 = data[-1024:]
-        record = self.read_MFTRecord(data1)
-        print(record["Data_Content"])
+        MFT_Begin_Sector = self.mft_begin_cluster * self.sc
+        MFT_Record_Size = 2**abs(self.cluster_per_record)
+        Sector_Size = self.sector_size
+        record_offset = MFT_Begin_Sector
+
+    def read_all_entry(self, record_offset, MFT_Record_Size, Sector_Size):
+        for _ in range(2, self.mft_file.num_sector, 2):
+            data = ut.read_sector(self.file_object, record_offset, 1, self.sector_size)
+            index = 0
+            size = 0
+            while (Sector_Size >= 0):
+                if(MFT_Record_Size > self.sector_size):
+                    data += ut.read_sector(self.file_object, record_offset + 1, 1, self.sector_size)
+                    Sector_Size += self.sector_size
+                    if(data[:4] == b"FILE"):
+                        try:
+                            record = self.read_MFTRecord(raw_record)
+                        except Exception as e:
+                            pass
+                    print("NAME: ", record["File_Name"], record["MFT_ID"], record["Parent_ID"])
+                    break
+                else:
+                    size += MFT_Record_Size
+                    raw_record = data[index:size]
+                    index += MFT_Record_Size
+                    Sector_Size -= MFT_Record_Size
+                if(raw_record[:4] == b"FILE"):
+                    try:
+                        record = self.read_MFTRecord(raw_record)
+                    except Exception as e:
+                        pass
+                    print("NAME: ", record["File_Name"], record["MFT_ID"], record["Parent_ID"])
+            record_offset += 1
+            Sector_Size = self.sector_size
 
     def pbs_sector(self):
         print("VOLUMN INFORMATION")
@@ -138,94 +159,34 @@ class NTFS:
             entry["Standard_Flag"] |= NTFSAttribute.DIRECTORY
             entry["Data_Length"] = 0
             entry["Data_Resident"] = True
-            entry["Data_Content"] = data[data_start + offset:]
-            entry["Data_Offset"] = ut.read_dec_offset(data, data_start + 20, 2)
      #-----------------------------------------------------------------------------------------------------------------#
         return entry
 
-    def get_subdirectory_entry(self, file_name):
-        # Assuming 'entries' is a list of directory entries with names and corresponding entry objects
-        # You need to replace this with the actual data structure and logic used in your code
-        entries = [
-            {"File_Name": "Subdirectory1", "Entry_Object": {...}},  # Replace {...} with the actual entry object
-            {"File_Name": "Subdirectory2", "Entry_Object": {...}},  # Replace {...} with the actual entry object
-            # Add more entries as needed
-        ]
-
-        # Search for the subdirectory entry by comparing file names
-        for entry in entries:
-            if entry["File_Name"] == file_name:
-                return entry["Entry_Object"]  # Return the entry object for the subdirectory
-
-        # Return None if the subdirectory entry is not found
-        return None
-
-    def read_directory(self, entry):
-        apps = {
-        'pptx': 'PowerPoint',
-        'csv': 'Spreadsheet Software',
-        'json': 'Text Editor or JSON Viewer',
-        'pdf': 'PDF Reader',
-        'jpg': 'Image Viewer',
-        'mp3': 'Audio Player',
-        'mp4': 'Video Player',
-        'png': 'Photos'
-        # Thêm các định dạng file khác theo cần thiết
-        }
-        if entry["Standard_Flag"] == NTFSAttribute.DIRECTORY:
-            directory_content = entry["Data_Content"]
-            file_names = directory_content.split(b'\x00')
-            file_names = [name.decode('utf-16le') for name in file_names if name]
-
-        print("Directory Content:")
-        for file_name in file_names:
-            print(file_name)
+    def parse_data(self, record):
+        if (record == None):
+            raise Exception ("Emty MFT entry, can not parse data")
+        if(record["Data_Resident"]):
+            return record["Data_Content"]
         else:
-            print("Not a directory or no content available")
+            data_content = b""
+            size_left = record["Data_Length"]
+            sector_offset = record["Cluster_Offset"] * self.sc
+            cluster_num = record["Cluster_Size"]
 
-    def parse_mft_data(self, raw_data):
-        # This function parses a simplified MFT record structure. 
-        # You might need to adjust it based on the actual MFT record format.
-
-        # Extract basic information
-        record_size = int.from_bytes(raw_data[:4], byteorder='little')
-        file_reference = int.from_bytes(raw_data[4:8], byteorder='little')
-        record_attributes = int.from_bytes(raw_data[8:12], byteorder='little')
-
-        # Print basic information
-        print(f"Record Size: {record_size}")
-        print(f"File Reference: {file_reference}")
-        print(f"Record Attributes: {record_attributes}")
-
-        # Check if directory flag is set
-        if record_attributes & 0x00000010:
-            print("Folder Attributes:")
-            # Might need to parse additional data for timestamps etc. depending on MFT format
-            offset = 12 # Adjust offset based on actual data structure
-            while offset < 20:
-            # Extract file/subdirectory information (assuming fixed size entries)
-                entry_size = int.from_bytes(raw_data[offset:offset+4], byteorder='little')
-                filename_offset = int.from_bytes(raw_data[offset+4:offset+8], byteorder='little')
-                file_reference = int.from_bytes(raw_data[offset+8:offset+12], byteorder='little')
-
-            # Print filename (assuming entry starts with filename)
-            filename = raw_data[offset+filename_offset:].decode('utf-16')
-            print(f"\t- {filename} (File Reference: {file_reference})")
-
-            # Update offset for next entry
-            offset += 1
-
-        else:
-            print("This is not a folder record.")
-
-    def get_data_content(self, cluster):
-        return
-
+            for _ in range(cluster_num):
+                if size_left <= 0:
+                    break
+                raw_data = ut.read_sector(self.file_object, sector_offset, 1, self.sector_size)
+                size_left -= self.sc * self.sector_size
+                sector_offset += 1
+                try:
+                    data_content += raw_data
+                except Exception as e:
+                    raise Exception("Something wrong")
+            return data_content
 
 
             
-
-    
 
 
 path = r'\\.\F:'
@@ -233,21 +194,26 @@ file = "drive_ntfs.bin"
 drive = NTFS(path)     
 #drive.pbs_sector()
 
- #while(data_sector < self.volumn_size):
-            #data = ut.read_sector(self.file_object, data_sector, 1, self.sector_size)
-            #data1 = data[:1024]
-            #data2 = data[-1024:]
-            #if(data1[:4] == b"FILE" and data[:4] == b"FILE"):
-                #try:
-                    #record1 = MFT_Entry(data1)
-                    #record2 = MFT_Entry(data2)
-                    #print("NAME: ", record1.long_fileName)
-                    #print("NAME: ", record2.long_fileName)
-                #except Exception as e:
-                    #pass
-            #data_sector += 1
+
+        # for _ in range(2, self.mft_file.num_sector, 2):
+        #     data = ut.read_sector(self.file_object, data_sector, 1, self.sector_size)
+        #     data1 = data[:1024]
+        #     data2 = data[-1024:]
+        #     if(data1[:4] == b"FILE" and data[:4] == b"FILE"):
+        #         try:
+        #             record1 = self.read_MFTRecord(data1)
+        #             record2 = self.read_MFTRecord(data2)
+        #             print("NAME: ", record1["File_Name"], record1["MFT_ID"], record1["Parent_ID"])
+        #             print("NAME: ", record2["File_Name"], record2["MFT_ID"], record2["Parent_ID"])
+        #         except Exception as e:
+        #             pass
+        #     data_sector += 1
 
 
-        #self.record_size = self.mft_record_size
-        #self.mft_offset = self.mft_begin_cluster
+        # data_sector = self.mft_begin_cluster * self.sc + 22 #19 20 22 23
+        # data = ut.read_sector(self.file_object, data_sector, 1, self.sector_size)
+        # record = self.read_MFTRecord(data[:1024])
+        # print(record["File_Name"])
+        # #ut.print_xxd(record["Data_Content"])
+        # print(record["Data_Content"].decode("utf-8"))
 
