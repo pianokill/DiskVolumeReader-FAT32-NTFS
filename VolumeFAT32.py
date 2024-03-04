@@ -3,7 +3,8 @@ import os
 class FAT32:     
     def __init__(self, path):
         self.path = path
-        bootsector = ut.read_sector(path, 0, 1)
+        bootsector = ut.read_sector(path, 0, 1, 512)
+        self.n_bytes_sector = ut.read_dec_offset(bootsector, 0x0B, 2)
         self.n_sectors_cluster = ut.read_dec_offset(bootsector, 0x0D, 1)  
         self.n_sectors_bootsector = ut.read_dec_offset(bootsector, 0x0E, 2)  
         self.n_fat_tables = ut.read_dec_offset(bootsector, 0x10, 1)  
@@ -16,9 +17,10 @@ class FAT32:
         #SECTORS IN BOOT SECTOR -> RESERVERD -> FAT TABLE -> ROOT DIRECTORY -> DATA AREA    
         self.rdet_sector_begin = self.n_sectors_bootsector + self.n_fat_tables * self.n_sectors_fat_table
         self.data_sector_begin = self.rdet_sector_begin
-        self.fat_data = ut.read_sector(self.path, self.n_sectors_bootsector, self.n_sectors_fat_table)
+        self.fat_data = ut.read_sector(self.path, self.n_sectors_bootsector, self.n_sectors_fat_table, self.n_bytes_sector)
     def bootsector(self):
         print("                         BOOT SECTOR INFORMATION OF", self.path)
+        print("      - Bytes/sector: ", self.n_bytes_sector)
         print("      - Sectors/cluster: ", self.n_sectors_cluster)
         print("      - Sectors/boot sector: ", self.n_sectors_bootsector)
         print("      - FAT Table: ", self.n_fat_tables)
@@ -60,7 +62,7 @@ class FAT32:
         return name, attr, cluster_begin, size ,e5 
     def read_directory(self, entry):
             sectors = self.sectors_chain(entry[2])
-            buffer = ut.read_list_sectors(self.path,sectors)
+            buffer = ut.read_list_sectors(self.path, sectors, self.n_bytes_sector)
             buffer = buffer[32*2:]
             entries = []
             sub_entries = []
@@ -90,10 +92,10 @@ class FAT32:
                     sub_name += ut.process_fat_lfnentries(sub_entries)
             
             return entries
-    def print_text_file(self,path, entry):
+    def print_text_file(self, entry):
         sectors = self.sectors_chain(entry[2])
         # đọc sector và decode utf8
-        content_txt_file = ut.read_list_sectors(path, sectors)
+        content_txt_file = ut.read_list_sectors(self.path, sectors, self.n_bytes_sector)
         content_txt_file = content_txt_file[:entry[3]]
         print(content_txt_file.decode('utf-8', errors='ignore'))
     def print_directory(self,buffer):
@@ -120,7 +122,7 @@ class FAT32:
             if found == False:
                 return ['', 0x04, '', -1, '']
         return entry 
-    def read_file(self, entry,path):
+    def read_file(self, entry, path):
         apps = {
         'pptx': 'PowerPoint',
         'csv': 'Spreadsheet Software',
@@ -134,7 +136,7 @@ class FAT32:
         }
         #text
         if ut.describe_attr(entry[1]) == "A" and entry[3] != -1 :
-            self.print_text_file(self.path, entry)
+            self.print_text_file(entry)
         #another file or empty file
         else:
             file_extension = path.split('.')[-1].lower()   
@@ -163,7 +165,7 @@ class FAT32:
             self.print_directory(self.read_directory(entry))
         #file 
         else: 
-            self.read_file(self, entry,path)
+            self.read_file(entry, path)
     def draw_tree(self, path, indent = '', is_last=True):
         if path != 'rdet':
             entry_begin = self.travel_to(path)
