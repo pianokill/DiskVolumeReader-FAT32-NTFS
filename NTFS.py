@@ -57,36 +57,37 @@ class NTFS:
         self.read_all_entry(record_offset, MFT_Record_Size, Sector_Size)
 
     def read_all_entry(self, record_offset, MFT_Record_Size, Sector_Size):
-        for _ in range(2, self.mft_file.num_sector, 2):
-            data = ut.read_sector(self.file_object, record_offset, 1, self.sector_size)
-            index = 0
-            size = 0
-            while (Sector_Size >= 0):
-                if(MFT_Record_Size > self.sector_size):
-                    data += ut.read_sector(self.file_object, record_offset + 1, 1, self.sector_size)
-                    Sector_Size += self.sector_size
-                    if(data[:4] == b"FILE"):
-                        try:
-                            record = self.read_MFTRecord(data)
-                        except Exception as e:
-                            pass
-                    print("NAME: ", record["File_Name"], record["MFT_ID"], record["Parent_ID"])
-                    record_offset += 1
-                    break
-                else:
+        if(Sector_Size == 512):
+            for _ in range(2, self.mft_file.num_sector, 2):
+                data = ut.read_sector(self.file_object, record_offset, 2, self.sector_size)
+                if(data[:4] == b"FILE"):
+                    try:
+                        record = self.read_MFTRecord(data)
+                        print("NAME: ", record["File_Name"], record["MFT_ID"], record["Parent_ID"])
+                    except Exception as e:
+                        pass
+                record_offset += 2
+        else:    
+            for _ in range(2, self.mft_file.num_sector, 2):
+                data = ut.read_sector(self.file_object, record_offset, 1, self.sector_size)
+                index = 0
+                size = 0
+                while (Sector_Size >= 0):
                     size += MFT_Record_Size
                     raw_record = data[index:size]
                     index += MFT_Record_Size
                     Sector_Size -= MFT_Record_Size
-                if(raw_record[:4] == b"FILE"):
-                    try:
-                        record = self.read_MFTRecord(raw_record)
-                    except Exception as e:
-                        pass
-                    print("NAME: ", record["File_Name"], record["MFT_ID"], record["Parent_ID"])
+                    if(raw_record[:4] == b"FILE"):
+                        try:
+                            record = self.read_MFTRecord(raw_record)
+                            if(record["File_Name"].decode('utf-16le').startswith("$")):
+                             pass
+                        except Exception as e:
+                            pass
+                        print("NAME: ", record["File_Name"], record["MFT_ID"], record["Parent_ID"])
 
-            record_offset += 1
-            Sector_Size = self.sector_size
+                record_offset += 1
+                Sector_Size = self.sector_size
 
     def pbs_sector(self):
         print("VOLUMN INFORMATION")
@@ -127,11 +128,11 @@ class NTFS:
         offset = ut.read_dec_offset(data, file_name_start + 20, 2)
         
         file_body_offset = file_name_start + offset
-        #file_body = self.data[fileName_start + offset:fileName_start + offset + file_len]
+        file_body = data[file_name_start + offset:file_name_start + offset + file_len]
 
         entry["Parent_ID"] = ut.read_dec_offset(data, file_body_offset, 6)
-        fileName_length = ut.read_dec_offset(data, file_body_offset + 64, 1)
-        entry["File_Name"] = ut.read_bin_offset(data, file_body_offset + 66, fileName_length * 2).decode('utf-16le')
+        fileName_length = file_body[64]
+        entry["File_Name"] = file_body[66:66 + fileName_length * 2]
     #-----------------------------------------------------------------------------------------------------------------#
         data_start = file_name_start + file_name_size
         data_sig = data[data_start:data_start + 4]
@@ -192,10 +193,10 @@ class NTFS:
             
 
 
-path = r'\\.\F:'
+path = r'\\.\E:'
 file = "drive_ntfs.bin"
-drive = NTFS(file)     
-#drive.pbs_sector()
+drive = NTFS(path)     
+drive.pbs_sector()
 
 
         # for _ in range(2, self.mft_file.num_sector, 2):
