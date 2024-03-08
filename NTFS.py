@@ -35,6 +35,7 @@ class MFT_FILE:
         self.data_size = ut.read_dec_offset(self.data, 0x104, 4)
         self.num_sector = (ut.read_dec_offset(self.data, 0x118, 2) + 1) * 8 #xem lại
         del self.data
+
 class NTFS:
     def __init__ (self, path):
         self.file_object = path
@@ -68,7 +69,7 @@ class NTFS:
             raise Exception("Skip this record")
         standard_info_start = ut.read_dec_offset(data, 0x14, 2)
         standard_info_size = ut.read_dec_offset(data, standard_info_start + 4, 4)
-    #------------------------------STANDARD INFO ATTRIBUTE-------------------------------------#
+    #---------------------------------------------STANDARD INFO ATTRIBUTE--------------------------------------------#
         opening_sig = ut.read_dec_offset(data, standard_info_start, 4)
         if(opening_sig != 16): #00 00 00 10
             raise Exception("Unknown")
@@ -76,8 +77,9 @@ class NTFS:
         begin = standard_info_start + offset
         entry["Created_time"] = ut.read_dec_offset(data, begin, 8) #add as_datetime()
         entry["Last_modified_time"] = ut.read_dec_offset(data, begin + 8, 8) # add as_datetime()
-        entry["Standard_Flag"] = NTFSAttribute(ut.read_dec_offset(data, begin + 32, 4) & 0xFFFF)
-    #-------------------------------------------------------------------------------------------#
+        #entry["Standard_Flag"] = NTFSAttribute(ut.read_dec_offset(data, begin + 32, 4) & 0xFFFF)
+        entry["Standard_Flag"] = NTFSAttribute(int.from_bytes(data[begin + 32:begin + 36], 'little') & 0xFFFF)
+    #-----------------------------------------------------------------------------------------------------------------#
         file_name_start = standard_info_size + standard_info_start
         file_name_size = ut.read_dec_offset(data, file_name_start + 4, 4)
     #-----------------------------------------------FILE NAME ATTRIBUTE-----------------------------------------------#
@@ -102,7 +104,7 @@ class NTFS:
             data_start += ut.read_dec_offset(data, data_start + 4, 4) #Skip $OJECT_ID
 
         data_sig = data[data_start:data_start + 4]
-     #-------------------------------------------------DATA ATTRIBUTE-----------------------------------------------#
+     #-------------------------------------------------DATA ATTRIBUTE-------------------------------------------------#
         if(data_sig[0] == 128):
             entry["Data_Resident"] = not bool(data[data_start + 8])
             if ( entry["Data_Resident"]):
@@ -120,7 +122,7 @@ class NTFS:
                 entry["Cluster_Offset"] = ut.read_dec_offset(data, data_start + 65 + size, size + offset)
 
         elif(data_sig[0] == 144):
-            entry["Standard_Flag"] = "Directory"
+            entry["Standard_Flag"] = NTFSAttribute.DIRECTORY
             entry["Data_Length"] = 0
             entry["Data_Resident"] = True
      #-----------------------------------------------------------------------------------------------------------------#
@@ -172,7 +174,6 @@ class NTFS:
     def record_Type(self, id):
         for record in self.records:
             if record["MFT_ID"] == id:
-                print(record["Standard_Flag"])
                 return record["Standard_Flag"]
         return -1
     def read_directory(self, id):
@@ -182,7 +183,6 @@ class NTFS:
                 sub_ids.append(record["MFT_ID"])
         return sub_ids
     def travel_to(self, path):
-        #Tailieu1\Tailieu2\file.txt
         directories = path.split('\\')
         id_current = 5
         for k in range(0, len(directories)):
@@ -200,7 +200,7 @@ class NTFS:
     def draw_tree(self, path, indent = '', is_last=True):
         if path != 5:
             id_current = self.travel_to(path)
-            if self.record_Type(id_current) != "Directory":
+            if self.record_Type(id_current) != NTFSAttribute.DIRECTORY:
                 print("Not a directory!")
                 return
         else: 
@@ -219,7 +219,7 @@ class NTFS:
         for id in (sub_ids):
             is_last = (i == len(sub_ids) - 1)
             
-            if (self.record_Type(id)) == "Directory":
+            if (self.record_Type(id)) == NTFSAttribute.DIRECTORY:
                 if(path != 5):
                     item_path = path + "\\" + self.record_Filename(id)
                 else:
@@ -262,11 +262,11 @@ for disk in logical_disks:
     print(f"Mountpoint: {disk['mountpoint']}, Filesystem Type: {disk['filesystem_type']}")
 path = input("Please provide your drive name: ")
 path = r'\\.\\'+path+":"
-drive = NTFS(path)    
-#drive.draw_tree(5)
+drive = NTFS(path)  
+
+drive.pbs_sector()  
+drive.draw_tree(5)
 
 
-
-#drive.pbs_sector()
 
 
