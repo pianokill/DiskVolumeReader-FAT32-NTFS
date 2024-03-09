@@ -9,7 +9,7 @@ def main_screen():
     print("FAT32 AND NTFS EXPLORER PROJECT --  FIT HCMUS  --  22CLC07 \n")
     print("----------------------------------------------------------")
     print(" 22127222 - Nguyễn Thanh Tuấn Kiệt")
-    print(" 22127    - Nguyễn Minh Sơn")
+    print(" 22127368    - Nguyễn Minh Sơn")
     print(" 22127068 - Trần Nguyễn Hoàng Diễn")
     print("----------------------------------------------------------")
     logical_disks = ut.list_logical_disks()
