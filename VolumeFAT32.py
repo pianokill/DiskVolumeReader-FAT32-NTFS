@@ -58,10 +58,9 @@ class FAT32:
         #size
         size = ut.read_dec_offset(buffer,0x1C,4)
         #trạng thái
-        
         e5 = ut.read_hex_offset(buffer, 0,1)
         return name, attr, cluster_begin, size ,e5 
-     def read_directory(self, entry):
+    def read_directory(self, entry):
             sectors = self.sectors_chain(entry[2])
             buffer = ut.read_list_sectors(self.path, sectors, self.n_bytes_sector)
             buffer = buffer[32*2:]
@@ -71,23 +70,18 @@ class FAT32:
             sub_name = ''
             for i in range(0, len(buffer), 32):
                 entry = self.read_entry(buffer[i:i+32])
-                
                 entry += buffer_subentry
                 # chưa kết thúc tập tin
                 if(entry[1] != 15):
                     buffer_subentry = ()
-                    
                 # có entry phụ trong tập tin
                     if(len(entry) > 5):
                         # nối tên các entry phụ
                         entry = list(entry)  
-                        
                         entry[0] =""  
                         entry[0] += sub_name  
-                        
                         entry = tuple(entry) 
                         sub_name = '' 
-                        
                         if( entry[4] !='00' and entry[4] != 'e5'  ):
                             entries.append(entry)
                         sub_entries.clear()    
@@ -100,9 +94,7 @@ class FAT32:
                     buffer_subentry += entry
                     sub_entries.append(buffer[i:i+32])
                     sub_entries.reverse()
-                    sub_name = ut.process_fat_lfnentries(sub_entries)
-                    
-               
+                    sub_name = ut.process_fat_lfnentries(sub_entries)          
             return entries
     def print_text_file(self, entry):
         sectors = self.sectors_chain(entry[2])
@@ -163,7 +155,7 @@ class FAT32:
                 print(path, "is invalid")
                 return
         print("---")
-        print("PATH INFORMATION: ")
+        print("PATH INFORMATION")
         print("---")
         print("NAME: ", entry[0])
         if(ut.describe_attr(entry[1]) == 'D'):
@@ -172,6 +164,9 @@ class FAT32:
             print("ATTRIBUTE: File")
         print("CLUSTER BEGIN: ", entry[2])
         print("SIZE: ", entry[3])
+        print("---")
+        print("PATH CONTENT")
+        print("---")
         #directory
         if ut.describe_attr(entry[1]) == 'D':
             self.print_directory(self.read_directory(entry))

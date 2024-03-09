@@ -166,6 +166,31 @@ class NTFS:
                             continue
                 record_offset += 1
         return records
+
+    def parse_data(self, record):
+        if (record == None):
+            raise Exception ("Emty MFT entry, can not parse data")
+        if(record["Data_Resident"]):
+            return record["Data_Content"]
+        else:
+            data_content = b""
+            size_left = record["Data_Length"]
+            sector_offset = record["Cluster_Offset"] * self.sc
+            cluster_num = record["Cluster_Size"]
+
+            for _ in range(cluster_num):
+                if size_left <= 0:
+                    break
+                raw_data = ut.read_sector(self.file_object, sector_offset, 1, self.sector_size)
+                size_left -= self.sc * self.sector_size
+                sector_offset += 1
+                try:
+                    data_content += raw_data
+                except Exception as e:
+                    raise Exception("Something wrong")
+            return data_content
+
+
     def record_Filename(self, id):
         for record in self.records:
             if record["MFT_ID"] == id:
@@ -176,12 +201,44 @@ class NTFS:
             if record["MFT_ID"] == id:
                 return record["Standard_Flag"]
         return -1
+    def get_Record(self, id):
+        for record in self.records:
+            if record["MFT_ID"] == id:
+                return record
+        return -1
     def read_directory(self, id):
         sub_ids = []
         for record in self.records:
             if record["Parent_ID"] == id:
                 sub_ids.append(record["MFT_ID"])
         return sub_ids
+    def print_directory(self, dir):
+        sub_ids = self.read_directory(dir)
+        print("Directory", self.record_Filename(dir), "includes", len(sub_ids), "files")
+        for (i, id) in enumerate(sub_ids):
+            record = self.get_Record(id)
+            print("File", i + 1)
+            print("Name:", record["File_Name"])       
+            print("Type:", record["Standard_Flag"])     
+        return
+    def print_file(self, id):
+        record = self.get_Record(id)
+        if record["File_Name"][-3:] == "txt":
+            print(self.parse_data(record).decode('utf-8'))
+        else:
+            apps = {
+            'pptx': 'PowerPoint',
+            'csv': 'Spreadsheet Software',
+            'json': 'Text Editor or JSON Viewer',
+            'pdf': 'PDF Reader',
+            'jpg': 'Image Viewer',
+            'mp3': 'Audio Player',
+            'mp4': 'Video Player',
+            'png': 'Photos'
+            }
+            file_extension = record["File_Name"].split('.')[-1].lower()   
+            suggested_application = apps.get(file_extension, 'Unknown app')
+            print("We currently do not support the functionality of reading this file. If you want to view the contents inside, you can use the following application: "+suggested_application )
     def travel_to(self, path):
         directories = path.split('\\')
         id_current = 5
@@ -195,17 +252,50 @@ class NTFS:
                     id_current = id
                     break
             if found == False:
-                raise Exception("NOT FOUND")
+                return -1
         return id_current 
+    def read_path(self, path):
+        if path == 5:
+            id = 5
+        else:
+            id = self.travel_to(path)
+            if id == -1:
+                print(path, "is invalid")
+                return
+        record = self.get_Record(id)
+        print("---")
+        print("PATH INFORMATION")
+        print("---")
+        print("NAME: ", record["File_Name"])
+        print("TYPE: ", record["Standard_Flag"])
+        print("CREATED TIME", as_datetime(record["Created_time"]))
+        print("LAST MODIFIED TIME", as_datetime(record["Last_modified_time"]))
+        if record["Parent_ID"] == 5:
+            parent = "5"
+        else:
+            parent = self.record_Filename(record["Parent_ID"])
+        print("Parent: ", parent)
+        print("---")
+        print("PATH CONTENT")
+        print("---")
+
+        if record["Standard_Flag"] == NTFSAttribute.DIRECTORY:
+            self.print_directory(id)
+        elif record["Standard_Flag"] == NTFSAttribute.ARCHIVE:
+            self.print_file(id)
+        else:
+            print(record["Standard_Flag"], "is not supported!")
     def draw_tree(self, path, indent = '', is_last=True):
         if path != '5':
             id_current = self.travel_to(path)
             if self.record_Type(id_current) != NTFSAttribute.DIRECTORY:
                 print("Not a directory!")
                 return
+            if id_current == -1:
+                print("Can not find", path)
+                return 
         else: 
             id_current = 5
-
         print(indent, end='')
         if is_last:
             print("└── ", end='')
@@ -233,29 +323,5 @@ class NTFS:
                     print("├── ", end='')
                 print(self.record_Filename(id))
             i+=1
-
-    def parse_data(self, record):
-        if (record == None):
-            raise Exception ("Emty MFT entry, can not parse data")
-        if(record["Data_Resident"]):
-            return record["Data_Content"]
-        else:
-            data_content = b""
-            size_left = record["Data_Length"]
-            sector_offset = record["Cluster_Offset"] * self.sc
-            cluster_num = record["Cluster_Size"]
-
-            for _ in range(cluster_num):
-                if size_left <= 0:
-                    break
-                raw_data = ut.read_sector(self.file_object, sector_offset, 1, self.sector_size)
-                size_left -= self.sc * self.sector_size
-                sector_offset += 1
-                try:
-                    data_content += raw_data
-                except Exception as e:
-                    raise Exception("Something wrong")
-            return data_content
-
 
 

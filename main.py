@@ -48,7 +48,7 @@ def main_screen():
             drive.draw_tree(directory)
         elif choice == '3':
             path_to_file = input("Please enter a path: ")
-            #drive.read_path(path_to_file.strip())
+            drive.read_path(path_to_file.strip())
         elif choice == '4':
             print("GOODBYE!")
             break
