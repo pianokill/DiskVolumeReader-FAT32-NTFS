@@ -1,5 +1,6 @@
 import utility as ut
 import os
+
 class FAT32:     
     def __init__(self, path):
         self.path = path
@@ -19,7 +20,7 @@ class FAT32:
         self.data_sector_begin = self.rdet_sector_begin
         self.fat_data = ut.read_sector(self.path, self.n_sectors_bootsector, self.n_sectors_fat_table, self.n_bytes_sector)
     def bootsector(self):
-        print("                         BOOT SECTOR INFORMATION OF", self.path)
+        print("                         FAT32 BOOT SECTOR")
         print("      - Bytes/sector: ", self.n_bytes_sector)
         print("      - Sectors/cluster: ", self.n_sectors_cluster)
         print("      - Sectors/boot sector: ", self.n_sectors_bootsector)
@@ -202,54 +203,51 @@ class FAT32:
                 print(entry[0])
             i+=1
 
-def clear_screen():
+# def clear_screen():
     
-    os.system('cls' if os.name == 'nt' else 'clear')
-def main_screen():
-    print("FAT32 AND NTFS EXPLORER PROJECT --  FIT HCMUS  --  22CLC07 \n")
-    print("----------------------------------------------------------")
-    print(" 22127222 - Nguyễn Thanh Tuấn Kiệt")
-    print(" 22127    - Nguyễn Minh Sơn")
-    print(" 22127068 - Trần Nguyễn Hoàng Diễn")
-    print("----------------------------------------------------------")
-    logical_disks = ut.list_logical_disks()
-    for disk in logical_disks:
-        print(f"Mountpoint: {disk['mountpoint']}, Filesystem Type: {disk['filesystem_type']}")
-    path = input("Please provide your drive name: ")
-    path = r'\\.\\'+path+":"
-    drive = FAT32(path)
-    clear_screen() 
-    while True:
-        print("---------------------------------------------WORKING WITH DRIVE",path,"---------------------------------------------\n")
-        print("                                                 MENU\n") 
-        print("                                        1. Print bootsector of ", drive.path)
-        print("                                        2. Draw a tree of a particular directory('rdet'/name of the directory...)")
-        print("                                        3. Display the content of a file/a directory.")
-        print("                                        4. Quit") 
-        choice = input("Please input your choice: ")
-        if choice == '1':
-            clear_screen()
-            drive.bootsector()
-        elif choice == '2':
-            directory = input("Please enter a directory path: ")
-            drive.draw_tree(directory)
-        elif choice == '3':
-            path_to_file = input("Please enter a path: ")
-            drive.read_path(path_to_file.strip())
-        elif choice == '4':
-            print("GOODBYE!")
-            break
-        else:
-            print("Chọn không hợp lệ. Hãy chọn lại.")
+#     os.system('cls' if os.name == 'nt' else 'clear')
+# def main_screen():
+#     print("FAT32 AND NTFS EXPLORER PROJECT --  FIT HCMUS  --  22CLC07 \n")
+#     print("----------------------------------------------------------")
+#     print(" 22127222 - Nguyễn Thanh Tuấn Kiệt")
+#     print(" 22127    - Nguyễn Minh Sơn")
+#     print(" 22127068 - Trần Nguyễn Hoàng Diễn")
+#     print("----------------------------------------------------------")
+#     logical_disks = ut.list_logical_disks()
+#     for disk in logical_disks:
+#         print(f"Mountpoint: {disk['mountpoint']}, Filesystem Type: {disk['filesystem_type']}")
+#     path = input("Please provide your drive name: ")
+#     path = r'\\.\\'+path+":"
+#     drive = FAT32(path)
+#     clear_screen() 
+#     while True:
+#         print("---------------------------------------------WORKING WITH DRIVE",path,"---------------------------------------------\n")
+#         print("                                                 MENU\n") 
+#         print("                                        1. Print bootsector of ", drive.path)
+#         print("                                        2. Draw a tree of a particular directory('rdet'/name of the directory...)")
+#         print("                                        3. Display the content of a file/a directory.")
+#         print("                                        4. Quit") 
+#         choice = input("Please input your choice: ")
+#         if choice == '1':
+#             clear_screen()
+#             drive.bootsector()
+#         elif choice == '2':
+#             directory = input("Please enter a directory path: ")
+#             drive.draw_tree(directory)
+#         elif choice == '3':
+#             path_to_file = input("Please enter a path: ")
+#             drive.read_path(path_to_file.strip())
+#         elif choice == '4':
+#             print("GOODBYE!")
+#             break
+#         else:
+#             print("Chọn không hợp lệ. Hãy chọn lại.")
 
-#drive.bootsector()    
-main_screen()
+# main_screen()        print("                         NTFS PARTITION BOOT SECTOR")
+        print("      - Bytes/sector: ", self.sector_size)
+        print("      - Sectors/cluster (Sc): ", self.sc)
+        print("      - Reserved sectors (Sb): ", self.sb)
+        print("      - Sectors in disk (Nv): ", self.volumn_size)
+        print("      - MFT begin sector: ", self.mft_begin_cluster * self.sc)
+        print("      - MFT Mirror begin sector: ", self.mft_mir_cluster)
 
-# rdet_entry = ['rdet', 0x10, drive.rdet_cluster_begin, 1]
-# entries_rdet = drive.read_directory(rdet_entry)
-# drive.print_directory(entries_rdet)
-#path = r'\\.\E:'
-#path = r'\\.\\'+path+":"
-##drive = FAT32(path)
-#drive.read_path("Hoàng Diễn")
-#drive.draw_tree('Hoàng Diễn')

@@ -52,14 +52,14 @@ class NTFS:
         MFT_Record_Size = 2**abs(self.cluster_per_record)
         record_offset = MFT_Begin_Sector
         self.records = self.read_all_records(record_offset, MFT_Record_Size) #Storing in dynamic memory -> saving reading time after this
-    def pbs_sector(self):
-        print("VOLUME INFORMATION")
-        print("Bytes/sector: ", self.sector_size)
-        print("Sectors/cluster (Sc): ", self.sc)
-        print("Reserved sectors (Sb): ", self.sb)
-        print("Sectors in disk (Nv): ", self.volumn_size)
-        print("MFT begin sector: ", self.mft_begin_cluster * self.sc)
-        print("MFT Mirror begin sector: ", self.mft_mir_cluster)
+    def bootsector(self):
+        print("                         NTFS PARTITION BOOT SECTOR")
+        print("      - Bytes/sector: ", self.sector_size)
+        print("      - Sectors/cluster (Sc): ", self.sc)
+        print("      - Reserved sectors (Sb): ", self.sb)
+        print("      - Sectors in disk (Nv): ", self.volumn_size)
+        print("      - MFT begin sector: ", self.mft_begin_cluster * self.sc)
+        print("      - MFT Mirror begin sector: ", self.mft_mir_cluster)
         print("\n")    
     def read_MFTRecord(self, data):
         entry = {}
@@ -198,7 +198,7 @@ class NTFS:
                 raise Exception("NOT FOUND")
         return id_current 
     def draw_tree(self, path, indent = '', is_last=True):
-        if path != 5:
+        if path != '5':
             id_current = self.travel_to(path)
             if self.record_Type(id_current) != NTFSAttribute.DIRECTORY:
                 print("Not a directory!")
@@ -220,7 +220,7 @@ class NTFS:
             is_last = (i == len(sub_ids) - 1)
             
             if (self.record_Type(id)) == NTFSAttribute.DIRECTORY:
-                if(path != 5):
+                if(path != '5'):
                     item_path = path + "\\" + self.record_Filename(id)
                 else:
                     item_path = self.record_Filename(id)
@@ -256,17 +256,6 @@ class NTFS:
                 except Exception as e:
                     raise Exception("Something wrong")
             return data_content
-
-logical_disks = ut.list_logical_disks()
-for disk in logical_disks:
-    print(f"Mountpoint: {disk['mountpoint']}, Filesystem Type: {disk['filesystem_type']}")
-path = input("Please provide your drive name: ")
-path = r'\\.\\'+path+":"
-drive = NTFS(path)  
-
-drive.pbs_sector()  
-drive.draw_tree(5)
-
 
 
 
